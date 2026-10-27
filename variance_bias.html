@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>分散の最尤推定のバイアス</title>
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:#ffffff}
+body{margin:0;background:#ffffff;color:#0b0b0b;font-family:"Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;line-height:1.7}
+main{max-width:720px;margin:0 auto;padding:20px 16px 32px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:#52514e;margin:0 0 6px}
+.legend span{display:flex;align-items:center;gap:6px}
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin:0 0 6px;font-size:14px;color:#52514e}
+.ctrl label{display:flex;align-items:center;gap:8px}
+.val{min-width:18px;font-weight:500;color:#0b0b0b}
+button{font:inherit;font-size:14px;color:#0b0b0b;background:#ffffff;border:1px solid #b5b3ab;border-radius:8px;padding:6px 14px;cursor:pointer}
+button:hover{background:#f4f3ee}
+svg{width:100%;height:auto;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:8px}
+.card{background:#f4f3ee;border-radius:8px;padding:1rem}
+.k{font-size:13px;color:#52514e}
+.v{font-size:24px;font-weight:500}
+.nav{display:inline-block;margin-top:20px;padding:10px 18px;border:1.5px solid #185FA5;border-radius:8px;color:#185FA5;font-size:15px;font-weight:500;text-decoration:none}
+.nav:hover{background:#185FA5;color:#ffffff}
+</style>
+</head>
+<body>
+<main>
+<div class="legend">
+  <span><span style="width:18px;border-top:2px dashed #52514e;display:inline-block"></span>真の分布(σ²=1)</span>
+  <span><span style="width:18px;border-top:3px solid #E24B4A;display:inline-block"></span>最尤推定した分布</span>
+  <span><span style="width:3px;height:14px;background:#639922;display:inline-block"></span>真の平均 μ</span>
+  <span><span style="width:3px;height:14px;background:#378ADD;display:inline-block"></span>標本平均 x̄</span>
+</div>
+<div class="ctrl">
+  <label>データ数 N<input type="range" id="n" min="2" max="10" step="1" value="2" style="width:130px"><span class="val" id="no"></span></label>
+  <button id="b1">データを1組引く</button>
+  <button id="b2">1000組まとめて引く</button>
+</div>
+<svg viewBox="0 0 680 240" role="img" aria-label="真の分布と最尤推定した分布の比較">
+  <line x1="20" y1="200" x2="660" y2="200" stroke="#b5b3ab" stroke-width="1"/>
+  <path id="ptrue" fill="none" stroke="#52514e" stroke-width="2" stroke-dasharray="6 5"/>
+  <path id="pml" fill="none" stroke="#E24B4A" stroke-width="3"/>
+  <line id="lmu" stroke="#639922" stroke-width="3"/>
+  <line id="lxb" stroke="#378ADD" stroke-width="3"/>
+  <g id="pts"></g>
+</svg>
+<div class="grid">
+  <div class="card"><div class="k">いまの1組の最尤分散</div><div class="v" id="m1"></div></div>
+  <div class="card"><div class="k" id="m2l"></div><div class="v" id="m2" style="color:#E24B4A"></div></div>
+  <div class="card"><div class="k">理論値 (N−1)/N</div><div class="v" id="m3"></div></div>
+  <div class="card"><div class="k">真の分散</div><div class="v">1.00</div></div>
+</div>
+<a class="nav" href="index.html">← 戻る:μ を動かすと何が変わる?</a>
+</main>
+<script>
+var N=2,trials=0,sumML=0;
+var X=function(x){return 20+(x+4)/8*640};
+var Y=function(y){return 200-Math.min(y,1)*180};
+var pdf=function(x,m,v){return Math.exp(-Math.pow(x-m,2)/(2*v))/Math.sqrt(2*Math.PI*v)};
+function randn(){var u=1-Math.random(),v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function curve(m,v){var d='';for(var x=-4;x<=4.001;x+=0.05){d+=(d?'L':'M')+X(x).toFixed(1)+' '+Y(pdf(x,m,v)).toFixed(1)}return d}
+function one(){
+  var a=[],s=0,i;
+  for(i=0;i<N;i++){var r=randn();a.push(r);s+=r}
+  var xb=s/N,q=0;
+  a.forEach(function(x){q+=Math.pow(x-xb,2)});
+  var v=Math.max(q/N,0.0004);
+  trials++;sumML+=v;
+  return {a:a,xb:xb,v:v};
+}
+function render(r){
+  document.getElementById('no').textContent=N;
+  document.getElementById('ptrue').setAttribute('d',curve(0,1));
+  document.getElementById('pml').setAttribute('d',curve(r.xb,r.v));
+  var l=document.getElementById('lmu');l.setAttribute('x1',X(0));l.setAttribute('x2',X(0));l.setAttribute('y1',Y(pdf(0,0,1)));l.setAttribute('y2',200);
+  var b=document.getElementById('lxb');var xb=Math.max(-4,Math.min(4,r.xb));b.setAttribute('x1',X(xb));b.setAttribute('x2',X(xb));b.setAttribute('y1',20);b.setAttribute('y2',200);
+  var g='';
+  r.a.forEach(function(x){if(x>-4&&x<4)g+='<circle cx="'+X(x)+'" cy="200" r="6" fill="#0b0b0b"/>'});
+  document.getElementById('pts').innerHTML=g;
+  document.getElementById('m1').textContent=r.v.toFixed(2);
+  document.getElementById('m2l').textContent='平均('+trials+'組)';
+  document.getElementById('m2').textContent=(sumML/trials).toFixed(2);
+  document.getElementById('m3').textContent=((N-1)/N).toFixed(2);
+}
+function add(k){var r;for(var i=0;i<k;i++)r=one();render(r)}
+document.getElementById('b1').addEventListener('click',function(){add(1)});
+document.getElementById('b2').addEventListener('click',function(){add(1000)});
+document.getElementById('n').addEventListener('input',function(e){N=parseInt(e.target.value);trials=0;sumML=0;add(1)});
+add(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>尤度関数:μ を動かすと何が変わる?</title>
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:#ffffff}
+body{margin:0;background:#ffffff;color:#0b0b0b;font-family:"Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;line-height:1.7}
+main{max-width:720px;margin:0 auto;padding:20px 16px 32px}
+.ctrl{display:flex;flex-wrap:wrap;gap:20px;margin:0 0 8px;font-size:14px;color:#52514e}
+.ctrl label{display:flex;align-items:center;gap:8px}
+.val{min-width:32px;font-weight:500;color:#0b0b0b}
+svg{width:100%;height:auto;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:8px}
+.card{background:#f4f3ee;border-radius:8px;padding:1rem}
+.k{font-size:13px;color:#52514e}
+.v{font-size:24px;font-weight:500}
+.vs{font-size:15px;font-weight:500;line-height:1.6}
+.t{font-size:12px;fill:#52514e}
+.nav{display:inline-block;margin-top:20px;padding:10px 18px;border:1.5px solid #185FA5;border-radius:8px;color:#185FA5;font-size:15px;font-weight:500;text-decoration:none}
+.nav:hover{background:#185FA5;color:#ffffff}
+</style>
+</head>
+<body>
+<main>
+<div class="ctrl">
+  <label>μ(山の位置)<input type="range" id="mu" min="-3" max="6" step="0.1" value="4" style="width:180px"><span class="val" id="muo"></span></label>
+  <label>σ(山の幅)<input type="range" id="sg" min="0.4" max="2.5" step="0.1" value="1" style="width:140px"><span class="val" id="sgo"></span></label>
+</div>
+<svg viewBox="0 0 680 270" role="img" aria-label="ガウス分布の山と3つのデータ点、各点での高さを示す緑の線">
+  <line x1="30" y1="230" x2="660" y2="230" stroke="#b5b3ab" stroke-width="1"/>
+  <path id="curve" fill="none" stroke="#E24B4A" stroke-width="2.5"/>
+  <line id="peakline" stroke="#E24B4A" stroke-width="1" stroke-dasharray="4 4"/>
+  <text id="peaktxt" class="t">山のてっぺん</text>
+  <g id="pts"></g>
+</svg>
+<div class="grid">
+  <div class="card"><div class="k">山のてっぺん</div><div class="v" id="m_peak"></div></div>
+  <div class="card"><div class="k">緑の線(左から)</div><div class="vs" id="m_h"></div></div>
+  <div class="card"><div class="k">尤度(3本の積)</div><div class="v" id="m_L"></div></div>
+</div>
+<a class="nav" href="variance_bias.html">次へ:分散の最尤推定はなぜ小さくなる? →</a>
+</main>
+<script>
+var data=[-1,0,1];
+var X=function(x){return 40+(x+3)/9*610};
+var Y=function(y){return 230-y/0.95*200};
+var N=function(x,m,s){return Math.exp(-Math.pow(x-m,2)/(2*s*s))/Math.sqrt(2*Math.PI*s*s)};
+var fmt=function(v){return v>=0.001?v.toFixed(3):(v===0?'0':v.toExponential(1))};
+var muEl=document.getElementById('mu'),sgEl=document.getElementById('sg');
+function draw(){
+  var m=parseFloat(muEl.value),s=parseFloat(sgEl.value);
+  document.getElementById('muo').textContent=m.toFixed(1);
+  document.getElementById('sgo').textContent=s.toFixed(1);
+  var d='';
+  for(var x=-3;x<=6.001;x+=0.05){d+=(d?'L':'M')+X(x).toFixed(1)+' '+Y(N(x,m,s)).toFixed(1)}
+  document.getElementById('curve').setAttribute('d',d);
+  var peak=N(m,m,s);
+  var pl=document.getElementById('peakline');
+  pl.setAttribute('x1',X(m));pl.setAttribute('x2',X(m));pl.setAttribute('y1',Y(peak));pl.setAttribute('y2',230);
+  var pt=document.getElementById('peaktxt');
+  pt.setAttribute('x',Math.min(Math.max(X(m)+8,30),580));pt.setAttribute('y',Math.max(Y(peak)-6,12));
+  pt.textContent='てっぺん '+peak.toFixed(2);
+  var g='',L=1,hs=[];
+  data.forEach(function(x){
+    var h=N(x,m,s);L*=h;hs.push(h);
+    g+='<line x1="'+X(x)+'" x2="'+X(x)+'" y1="'+Y(h)+'" y2="230" stroke="#639922" stroke-width="4"/>';
+    g+='<circle cx="'+X(x)+'" cy="'+Y(h)+'" r="5" fill="#378ADD"/>';
+    g+='<circle cx="'+X(x)+'" cy="230" r="5" fill="#0b0b0b"/>';
+    g+='<text x="'+X(x)+'" y="252" text-anchor="middle" class="t">x='+x+'</text>';
+  });
+  document.getElementById('pts').innerHTML=g;
+  document.getElementById('m_peak').textContent=peak.toFixed(2);
+  document.getElementById('m_h').innerHTML=hs.map(fmt).join('<br>');
+  document.getElementById('m_L').textContent=fmt(L);
+}
+muEl.addEventListener('input',draw);sgEl.addEventListener('input',draw);
+draw();
+</script>
+</body>
+</html>
